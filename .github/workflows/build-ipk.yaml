@@ -1,0 +1,36 @@
+name: build-ipk
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        arch:
+        - aarch64_generic
+        branch:
+        - openwrt-24.10
+        - SNAPSHOT
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: build
+      uses: cmangla/gh-action-sdk@pr-hash-fixup-option
+      env:
+        ARCH: ${{ matrix.arch }}-${{ matrix.branch }}
+        PACKAGES: pcat-manager-v1
+        NO_REFRESH_CHECK: true
+        FIXUP: 1
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pcat-manager-v1-${{ matrix.arch }}-${{ matrix.branch }}
+        path: |
+          bin/packages/${{ matrix.arch }}/action/pcat-manager-v1*.ipk
+        if-no-files-found: error
