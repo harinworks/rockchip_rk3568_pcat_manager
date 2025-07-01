@@ -1,0 +1,47 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      matrix:
+        include:
+        - distro: ubuntu_devel
+          arch: aarch64
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+
+    - name: run-on-arch
+      uses: uraimo/run-on-arch-action@v3
+      with:
+        distro: ${{ matrix.distro }}
+        arch: ${{ matrix.arch }}
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get -y update
+          apt-get -y install \
+            build-essential meson ninja-build \
+            libglib2.0-dev libusb-1.0-0-dev libjson-c-dev libgpiod-dev
+        env: |
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set +eu
+          meson setup build/
+          meson compile -C build/ -v
+          exit 0
+
+    - name: upload-artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: pcat-manager
+        path: |
+          build/src/pcat-manager
+        if-no-files-found: error
