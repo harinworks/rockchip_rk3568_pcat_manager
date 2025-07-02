@@ -720,6 +720,7 @@ static void pcat_controller_command_modem_status_get_func(
     const gchar *command, struct json_object *root)
 {
     struct json_object *rroot, *child;
+    const PCatManagerMainConfigData *config_data;
     PCatModemManagerMode mode = PCAT_MODEM_MANAGER_MODE_NONE;
     PCatModemManagerSIMState sim_state = PCAT_MODEM_MANAGER_SIM_STATE_ABSENT;
     gint signal_strength = 0;
@@ -733,7 +734,10 @@ static void pcat_controller_command_modem_status_get_func(
     child = json_object_new_string(command);
     json_object_object_add(rroot, "command", child);
 
-    if(!pcat_modem_manager_status_get(&mode, &sim_state, &rfkill_state,
+    config_data = pcat_main_config_data_get();
+
+    if(!config_data->gn_modem_manager_enabled ||
+        !pcat_modem_manager_status_get(&mode, &sim_state, &rfkill_state,
         &signal_strength, &isp_name, &isp_plmn))
     {
         code = 1;
@@ -1009,6 +1013,7 @@ static void pcat_controller_command_modem_rfkill_mode_set_func(
     const gchar *command, struct json_object *root)
 {
     struct json_object *rroot, *child;
+    const PCatManagerMainConfigData *config_data;
     gboolean state = FALSE;
 
     rroot = json_object_new_object();
@@ -1019,12 +1024,17 @@ static void pcat_controller_command_modem_rfkill_mode_set_func(
     child = json_object_new_int(0);
     json_object_object_add(rroot, "code", child);
 
+    config_data = pcat_main_config_data_get();
+
     if(json_object_object_get_ex(root, "state", &child))
     {
         state = (json_object_get_int(child)!=0);
     }
 
-    pcat_modem_manager_device_rfkill_mode_set(state);
+    if(config_data->gn_modem_manager_enabled)
+    {
+        pcat_modem_manager_device_rfkill_mode_set(state);
+    }
 
     pcat_controller_unix_socket_output_json_push(ctrl_data, connection_data,
         rroot);
@@ -1118,6 +1128,7 @@ static void pcat_controller_command_modem_network_get_func(
     const gchar *command, struct json_object *root)
 {
     struct json_object *rroot, *child;
+    const PCatManagerMainConfigData *config_data;
     const PCatManagerUserConfigData *uconfig_data;
     PCatModemManagerDeviceType device_type;
     const gchar *device_type_str = "none";
@@ -1130,9 +1141,11 @@ static void pcat_controller_command_modem_network_get_func(
     child = json_object_new_int(0);
     json_object_object_add(rroot, "code", child);
 
+    config_data = pcat_main_config_data_get();
     uconfig_data = pcat_main_user_config_data_get();
 
-    device_type = pcat_modem_manager_device_type_get();
+    device_type = config_data->gn_modem_manager_enabled ?
+        pcat_modem_manager_device_type_get() : PCAT_MODEM_MANAGER_DEVICE_NONE;
     switch(device_type)
     {
         case PCAT_MODEM_MANAGER_DEVICE_5G:

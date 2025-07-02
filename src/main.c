@@ -71,6 +71,7 @@ static gboolean pcat_main_config_data_load()
 {
     GKeyFile *keyfile;
     GError *error = NULL;
+    gboolean bvalue;
     gint ivalue;
     gint *ivlist;
     gsize ivlist_size;
@@ -91,6 +92,22 @@ static gboolean pcat_main_config_data_load()
 
         return FALSE;
     }
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "ModemManagerEnabled", NULL);
+    g_pcat_main_config_data.gn_modem_manager_enabled = bvalue;
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "ControllerEnabled", NULL);
+    g_pcat_main_config_data.gn_controller_enabled = bvalue;
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "CheckMWANPolicy", NULL);
+    g_pcat_main_config_data.gn_check_mwan_policy = bvalue;
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "CheckConnection", NULL);
+    g_pcat_main_config_data.gn_check_connection = bvalue;
 
     if(g_pcat_main_config_data.hw_gpio_modem_power_chip!=NULL)
     {
@@ -1453,43 +1470,55 @@ int main(int argc, char *argv[])
             "power management may not work!");
     }
 
-    if(!pcat_modem_manager_init())
+    if(g_pcat_main_config_data.gn_modem_manager_enabled &&
+        !pcat_modem_manager_init())
     {
         g_warning("Failed to initialize modem manager, "
             "LTE/5G modem may not work!");
     }
-    if(!pcat_controller_init())
+
+    if(g_pcat_main_config_data.gn_controller_enabled &&
+        !pcat_controller_init())
     {
         g_warning("Failed to initialize controller, may not be able to "
             "communicate with other processes.");
     }
 
-    if(!g_pcat_main_cmd_distro)
-    {
-        if(pthread_create(&mwan_policy_check_thread, NULL,
-            pcat_main_mwan_policy_check_thread_func, NULL)!=0)
+    if(!g_pcat_main_cmd_distro) {
+        if(g_pcat_main_config_data.gn_check_mwan_policy)
         {
-            g_warning("Failed to create MWAN policy check thread, routing "
-                "check will not work!");
-        }
-        else
-        {
-            pthread_detach(mwan_policy_check_thread);
-        }
-
-        if(pthread_create(&connection_check_thread, NULL,
-            pcat_main_connection_check_thread_func, NULL)!=0)
-        {
-            g_warning("Failed to create connection check thread, routing "
-                "check may not work correctly!");
-        }
-        else
-        {
-            pthread_detach(connection_check_thread);
+            if(pthread_create(&mwan_policy_check_thread, NULL,
+                pcat_main_mwan_policy_check_thread_func, NULL)!=0)
+            {
+                g_warning("Failed to create MWAN policy check thread, routing "
+                    "check will not work!");
+            }
+            else
+            {
+                pthread_detach(mwan_policy_check_thread);
+            }
         }
 
-        g_pcat_main_status_check_timeout_id =
-            g_timeout_add_seconds(2, pcat_main_status_check_timeout_func, NULL);
+        if(g_pcat_main_config_data.gn_check_connection)
+        {
+            if(pthread_create(&connection_check_thread, NULL,
+                pcat_main_connection_check_thread_func, NULL)!=0)
+            {
+                g_warning("Failed to create connection check thread, routing "
+                    "check may not work correctly!");
+            }
+            else
+            {
+                pthread_detach(connection_check_thread);
+            }
+        }
+
+        if(g_pcat_main_config_data.gn_check_mwan_policy ||
+            g_pcat_main_config_data.gn_check_connection)
+        {
+            g_pcat_main_status_check_timeout_id =
+                g_timeout_add_seconds(2, pcat_main_status_check_timeout_func, NULL);
+        }
     }
 
     g_main_loop_run(g_pcat_main_loop);

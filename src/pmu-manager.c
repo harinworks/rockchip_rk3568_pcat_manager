@@ -1517,7 +1517,8 @@ static gboolean pcat_pmu_manager_check_timeout_func(gpointer user_data)
         }
     }
 
-    modem_power_usage = pcat_modem_manager_device_power_usage_get();
+    modem_power_usage = config_data->gn_modem_manager_enabled ?
+        pcat_modem_manager_device_power_usage_get() : 0;
 
     if(pmu_data->modem_power_usage!=modem_power_usage)
     {
