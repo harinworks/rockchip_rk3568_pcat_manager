@@ -58,6 +58,8 @@ static const guint g_pcat_main_shutdown_wait_max = 30;
 
 static gboolean g_pcat_main_cmd_daemonsize = FALSE;
 static gboolean g_pcat_main_cmd_distro = FALSE;
+static gboolean g_pcat_main_cmd_mwan = FALSE;
+static gboolean g_pcat_main_cmd_connection = FALSE;
 
 static GMainLoop *g_pcat_main_loop = NULL;
 static gboolean g_pcat_main_shutdown = FALSE;
@@ -88,7 +90,11 @@ static GOptionEntry g_pcat_cmd_entries[] =
     { "daemon", 'D', 0, G_OPTION_ARG_NONE, &g_pcat_main_cmd_daemonsize,
         "Run as a daemon", NULL },
     { "distro", 0, 0, G_OPTION_ARG_NONE, &g_pcat_main_cmd_distro,
-        "Run this program on normal Linux distros (not OpenWRT)", NULL },
+        "Run this program on other Linux distros (not photonicatWrt)", NULL },
+    { "mwan", 0, 0, G_OPTION_ARG_NONE, &g_pcat_main_cmd_mwan,
+        "Check MultiWAN policy", NULL },
+    { "connection", 0, 0, G_OPTION_ARG_NONE, &g_pcat_main_cmd_connection,
+        "Check connection", NULL },
     { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, NULL }
 };
 
@@ -1415,7 +1421,7 @@ int main(int argc, char *argv[])
             "communicate with other processes.");
     }
 
-    if(!g_pcat_main_cmd_distro)
+    if(g_pcat_main_cmd_mwan)
     {
         if(pthread_create(&mwan_policy_check_thread, NULL,
             pcat_main_mwan_policy_check_thread_func, NULL)!=0)
@@ -1427,7 +1433,10 @@ int main(int argc, char *argv[])
         {
             pthread_detach(mwan_policy_check_thread);
         }
+    }
 
+    if(g_pcat_main_cmd_connection)
+    {
         if(pthread_create(&connection_check_thread, NULL,
             pcat_main_connection_check_thread_func, NULL)!=0)
         {
@@ -1438,7 +1447,10 @@ int main(int argc, char *argv[])
         {
             pthread_detach(connection_check_thread);
         }
+    }
 
+    if(g_pcat_main_cmd_mwan || g_pcat_main_cmd_connection)
+    {
         g_pcat_main_status_check_timeout_id =
             g_timeout_add_seconds(2, pcat_main_status_check_timeout_func, NULL);
     }
