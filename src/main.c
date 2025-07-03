@@ -21,39 +21,6 @@
 
 #define PCAT_MAIN_LOG_FILE "/tmp/pcat-manager.log"
 
-typedef enum
-{
-    PCAT_MAIN_IFACE_WIRED,
-    PCAT_MAIN_IFACE_WIRED_V6,
-    PCAT_MAIN_IFACE_MOBILE_5G,
-    PCAT_MAIN_IFACE_MOBILE_5G_V6,
-    PCAT_MAIN_IFACE_MOBILE_LTE,
-    PCAT_MAIN_IFACE_MOBILE_LTE_V6,
-    PCAT_MAIN_IFACE_LAST
-}PCatMainIfaceType;
-
-const gchar * const g_pcat_main_iface_names[
-    PCAT_MAIN_IFACE_LAST] =
-{
-    "wan",
-    "wan6",
-    "wwan_5g",
-    "wwan_5g_v6",
-    "wwan_lte",
-    "wwan_lte_v6"
-};
-
-const PCatManagerRouteMode g_pcat_main_iface_route_mode[
-    PCAT_MAIN_IFACE_LAST] =
-{
-    PCAT_MANAGER_ROUTE_MODE_WIRED,
-    PCAT_MANAGER_ROUTE_MODE_WIRED,
-    PCAT_MANAGER_ROUTE_MODE_MOBILE,
-    PCAT_MANAGER_ROUTE_MODE_MOBILE,
-    PCAT_MANAGER_ROUTE_MODE_MOBILE,
-    PCAT_MANAGER_ROUTE_MODE_MOBILE
-};
-
 static const guint g_pcat_main_shutdown_wait_max = 30;
 
 static gboolean g_pcat_main_cmd_daemonsize = FALSE;
@@ -144,6 +111,26 @@ static gboolean pcat_main_config_data_load()
     bvalue = g_key_file_get_boolean(keyfile, "General",
         "CheckConnection", NULL);
     g_pcat_main_config_data.gn_check_connection = bvalue;
+
+    if(g_pcat_main_config_data.gn_mwan_iface_table_name!=NULL)
+    {
+        g_free(g_pcat_main_config_data.gn_mwan_iface_table_name);
+    }
+    g_pcat_main_config_data.gn_mwan_iface_table_name =
+        g_key_file_get_string_list(keyfile, "General", "MWANInterfaceTableName",
+        &g_pcat_main_config_data.gn_mwan_iface_table_name_size, NULL);
+
+    if(g_pcat_main_config_data.gn_mwan_iface_table_mode!=NULL)
+    {
+        g_free(g_pcat_main_config_data.gn_mwan_iface_table_mode);
+    }
+    g_pcat_main_config_data.gn_mwan_iface_table_mode =
+        g_key_file_get_string_list(keyfile, "General", "MWANInterfaceTableMode",
+            &g_pcat_main_config_data.gn_mwan_iface_table_mode_size, NULL);
+
+    g_pcat_main_config_data.gn_mwan_iface_table_size = MIN(
+        g_pcat_main_config_data.gn_mwan_iface_table_name_size,
+        g_pcat_main_config_data.gn_mwan_iface_table_mode_size);
 
     if(g_pcat_main_config_data.hw_gpio_modem_power_chip!=NULL)
     {
@@ -789,6 +776,23 @@ static gboolean pcat_main_sigusr1_func(gpointer user_data)
     return TRUE;
 }
 
+static PCatManagerRouteMode pcat_main_route_mode_by_string(const char *str) {
+    if(strcmp(str, "wired"))
+    {
+        return PCAT_MANAGER_ROUTE_MODE_WIRED;
+    }
+    else if(strcmp(str, "mobile"))
+    {
+        return PCAT_MANAGER_ROUTE_MODE_MOBILE;
+    }
+    else if(strcmp(str, "unknown"))
+    {
+        return PCAT_MANAGER_ROUTE_MODE_UNKNOWN;
+    }
+
+    return PCAT_MANAGER_ROUTE_MODE_NONE;
+}
+
 static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
 {
     guint i, j;
@@ -802,8 +806,10 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
     const gchar *iface, *upercent;
     guint percent;
     gboolean ret;
-    PCatMainIfaceType route_iface;
-    gboolean iface_status[PCAT_MAIN_IFACE_LAST];
+    guint route_iface;
+    gsize iface_table_size = g_pcat_main_config_data.gn_mwan_iface_table_size;
+    GArray *iface_status = g_array_sized_new(FALSE, FALSE, sizeof(gboolean),
+        iface_table_size);
     gboolean mwan3_interface_check_flag;
     gboolean mwan3_status_all_not_running;
 
@@ -823,12 +829,12 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
     {
         mwan3_interface_check_flag = TRUE;
 
-        for(i=0;i<PCAT_MAIN_IFACE_LAST;i++)
+        for(i=0;i<iface_table_size;i++)
         {
-            iface_status[i] = FALSE;
+            g_array_index(iface_status, gboolean, i) = FALSE;
 
             command = g_strdup_printf("ubus call network.interface.%s status",
-                g_pcat_main_iface_names[i]);
+                g_pcat_main_config_data.gn_mwan_iface_table_name[i]);
             g_spawn_command_line_sync(command, &interface_status_stdout,
                 NULL, NULL, NULL);
             g_free(command);
@@ -886,7 +892,7 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                 }
                 if(ret)
                 {
-                    iface_status[i] = TRUE;
+                    g_array_index(iface_status, gboolean, i) = TRUE;
                 }
 
                 json_object_put(root);
@@ -927,15 +933,16 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
 
             mwan3_status_all_not_running = TRUE;
 
-            for(i=0;i<PCAT_MAIN_IFACE_LAST;i++)
+            for(i=0;i<iface_table_size;i++)
             {
-                if(!iface_status[i])
+                if(!g_array_index(iface_status, gboolean, i))
                 {
                     continue;
                 }
 
                 if(!json_object_object_get_ex(interfaces,
-                    g_pcat_main_iface_names[i], &interface))
+                    g_pcat_main_config_data.gn_mwan_iface_table_name[i],
+                    &interface))
                 {
                     continue;
                 }
@@ -1017,14 +1024,15 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                             }
                         }
 
-                        route_iface = PCAT_MAIN_IFACE_LAST;
+                        route_iface = iface_table_size;
 
                         if(percent > 0)
                         {
-                            for(j=0;j<PCAT_MAIN_IFACE_LAST;j++)
+                            for(j=0;j<iface_table_size;j++)
                             {
                                 if(g_strcmp0(iface,
-                                    g_pcat_main_iface_names[j])==0)
+                                    g_pcat_main_config_data.gn_mwan_iface_table_name[
+                                    j])==0)
                                 {
                                     route_iface = j;
 
@@ -1037,11 +1045,12 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
 
                         if(ret)
                         {
-                            if(route_iface!=PCAT_MAIN_IFACE_LAST)
+                            if(route_iface!=iface_table_size)
                             {
                                 g_pcat_main_network_route_mode =
-                                    g_pcat_main_iface_route_mode[
-                                    route_iface];
+                                    pcat_main_route_mode_by_string(
+                                    g_pcat_main_config_data.gn_mwan_iface_table_mode[
+                                    route_iface]);
                             }
 
                             break;
@@ -1085,14 +1094,15 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                             }
                         }
 
-                        route_iface = PCAT_MAIN_IFACE_LAST;
+                        route_iface = iface_table_size;
 
                         if(percent > 0)
                         {
-                            for(j=0;j<PCAT_MAIN_IFACE_LAST;j++)
+                            for(j=0;j<iface_table_size;j++)
                             {
                                 if(g_strcmp0(iface,
-                                    g_pcat_main_iface_names[j])==0)
+                                    g_pcat_main_config_data.gn_mwan_iface_table_name[
+                                    j])==0)
                                 {
                                     route_iface = j;
 
@@ -1105,11 +1115,12 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
 
                         if(ret)
                         {
-                            if(route_iface!=PCAT_MAIN_IFACE_LAST)
+                            if(route_iface!=iface_table_size)
                             {
                                 g_pcat_main_network_route_mode =
-                                    g_pcat_main_iface_route_mode[
-                                    route_iface];
+                                    pcat_main_route_mode_by_string(
+                                    g_pcat_main_config_data.gn_mwan_iface_table_mode[
+                                    route_iface]);
                             }
 
                             break;
@@ -1148,6 +1159,8 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
             g_usleep(100000);
         }
     }
+
+    g_array_free(iface_status, TRUE);
 
     return NULL;
 }

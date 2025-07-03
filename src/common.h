@@ -38,6 +38,12 @@ typedef struct _PCatManagerMainConfigData
     gboolean gn_check_mwan_policy;
     gboolean gn_check_connection;
 
+    gsize gn_mwan_iface_table_size;
+    gchar **gn_mwan_iface_table_name;
+    gsize gn_mwan_iface_table_name_size;
+    gchar **gn_mwan_iface_table_mode;
+    gsize gn_mwan_iface_table_mode_size;
+
     gchar *hw_gpio_modem_power_chip;
     guint hw_gpio_modem_power_line;
     gboolean hw_gpio_modem_power_active_low;

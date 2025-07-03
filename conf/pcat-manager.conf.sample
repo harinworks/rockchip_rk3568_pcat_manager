@@ -3,6 +3,8 @@ ForceDistro=false
 ForcePowerUsage=
 CheckMWANPolicy=false
 CheckConnection=false
+MWANInterfaceTableName=
+MWANInterfaceTableMode=
 
 [Hardware]
 GPIOModemPowerChip=/dev/gpiochip4
