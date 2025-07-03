@@ -64,6 +64,12 @@ typedef struct _PCatManagerMainConfigData
     guint pm_battery_full_threshold;
     guint pm_battery_charge_detection_threshold;
 
+    gsize mwan_iface_table_size;
+    gchar **mwan_iface_table_name;
+    gsize mwan_iface_table_name_size;
+    gchar **mwan_iface_table_mode;
+    gsize mwan_iface_table_mode_size;
+
     gboolean debug_modem_external_exec_stdout_log;
     gboolean debug_output_log;
 }PCatManagerMainConfigData;
