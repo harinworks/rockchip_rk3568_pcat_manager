@@ -781,9 +781,17 @@ static PCatManagerRouteMode pcat_main_route_mode_by_string(const char *str) {
     {
         return PCAT_MANAGER_ROUTE_MODE_WIRED;
     }
+    else if(strcmp(str, "wireless"))
+    {
+        return PCAT_MANAGER_ROUTE_MODE_WIRELESS;
+    }
     else if(strcmp(str, "mobile"))
     {
         return PCAT_MANAGER_ROUTE_MODE_MOBILE;
+    }
+    else if(strcmp(str, "virtual"))
+    {
+        return PCAT_MANAGER_ROUTE_MODE_VIRTUAL;
     }
     else if(strcmp(str, "unknown"))
     {
@@ -1255,6 +1263,16 @@ static gboolean pcat_main_status_check_timeout_func(gpointer user_data)
                 if(g_pcat_main_net_status_led_work_mode)
                 {
                     pcat_pmu_manager_net_status_led_setup(
+                        100, 100, 0);
+                }
+
+                break;
+            }
+            case PCAT_MANAGER_ROUTE_MODE_WIRELESS:
+            {
+                if(g_pcat_main_net_status_led_work_mode)
+                {
+                    pcat_pmu_manager_net_status_led_setup(
                         50, 50, 0);
                 }
 
@@ -1265,7 +1283,17 @@ static gboolean pcat_main_status_check_timeout_func(gpointer user_data)
                 if(g_pcat_main_net_status_led_work_mode)
                 {
                     pcat_pmu_manager_net_status_led_setup(
-                        20, 380, 0);
+                        25, 25, 0);
+                }
+
+                break;
+            }
+            case PCAT_MANAGER_ROUTE_MODE_VIRTUAL:
+            {
+                if(g_pcat_main_net_status_led_work_mode)
+                {
+                    pcat_pmu_manager_net_status_led_setup(
+                        10, 10, 0);
                 }
 
                 break;

@@ -859,9 +859,19 @@ static void pcat_controller_command_network_route_mode_get_func(
             mode_str = "wired";
             break;
         }
+        case PCAT_MANAGER_ROUTE_MODE_WIRELESS:
+        {
+            mode_str = "wireless";
+            break;
+        }
         case PCAT_MANAGER_ROUTE_MODE_MOBILE:
         {
             mode_str = "mobile";
+            break;
+        }
+        case PCAT_MANAGER_ROUTE_MODE_VIRTUAL:
+        {
+            mode_str = "virtual";
             break;
         }
         case PCAT_MANAGER_ROUTE_MODE_UNKNOWN:
