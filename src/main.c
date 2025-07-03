@@ -805,10 +805,7 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
     PCatMainIfaceType route_iface;
     gboolean iface_status[PCAT_MAIN_IFACE_LAST];
     gboolean mwan3_interface_check_flag;
-    gint64 mwan3_interface_check_timestamp;
     gboolean mwan3_status_all_not_running;
-
-    mwan3_interface_check_timestamp = g_get_monotonic_time();
 
     i = 0;
     while(g_pcat_main_mwan_route_check_flag)
@@ -985,11 +982,6 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                 mwan3_interface_check_flag = FALSE;
             }
 
-            if(mwan3_interface_check_flag)
-            {
-                mwan3_interface_check_timestamp = g_get_monotonic_time();
-            }
-
             if(!json_object_object_get_ex(root, "policies", &policies))
             {
                 json_object_put(root);
@@ -1142,27 +1134,13 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
             }
         }
 
-        if(g_get_monotonic_time() >
-            mwan3_interface_check_timestamp +
-            PCAT_MAIN_MWAN_STATUS_CHECK_TIMEOUT * 1000000L)
+        if(mwan3_interface_check_flag)
         {
-            g_spawn_command_line_sync("mwan3 restart", NULL,
-                NULL, NULL, NULL);
-
-            mwan3_interface_check_timestamp = g_get_monotonic_time();
-
-            g_warning("MWAN3 status is not correct, try to restart!");
+            g_debug("MWAN3 status check OK!");
         }
         else
         {
-            if(mwan3_interface_check_flag)
-            {
-                g_debug("MWAN3 status check OK!");
-            }
-            else
-            {
-                g_debug("MWAN3 status ERROR!");
-            }
+            g_debug("MWAN3 status ERROR!");
         }
 
         for(i=0;i<50 && g_pcat_main_mwan_route_check_flag;i++)
