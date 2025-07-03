@@ -950,9 +950,30 @@ static gpointer pcat_modem_manager_modem_work_thread_func(
 
             case PCAT_MODEM_MANAGER_STATE_RUN:
             {
-                if(!pcat_main_is_running_on_distro())
+                mm_data->modem_power_usage = 0;
+
+                if(!main_config_data->gn_force_distro &&
+                    !pcat_main_is_running_on_distro())
                 {
                     pcat_modem_manager_scan_usb_devs(mm_data);
+                }
+
+                if (main_config_data->gn_force_power_usage!=NULL)
+                {
+                    if (strcmp(main_config_data->gn_force_power_usage, "5g"))
+                    {
+                        mm_data->modem_power_usage = 2;
+                    }
+                    else if (strcmp(main_config_data->gn_force_power_usage,
+                        "lte"))
+                    {
+                        mm_data->modem_power_usage = 1;
+                    }
+                    else if (strcmp(main_config_data->gn_force_power_usage,
+                        "general"))
+                    {
+                        mm_data->modem_power_usage = 0;
+                    }
                 }
 
                 if(!mm_data->work_flag)

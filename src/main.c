@@ -58,8 +58,6 @@ static const guint g_pcat_main_shutdown_wait_max = 30;
 
 static gboolean g_pcat_main_cmd_daemonsize = FALSE;
 static gboolean g_pcat_main_cmd_distro = FALSE;
-static gboolean g_pcat_main_cmd_mwan = FALSE;
-static gboolean g_pcat_main_cmd_connection = FALSE;
 
 static GMainLoop *g_pcat_main_loop = NULL;
 static gboolean g_pcat_main_shutdown = FALSE;
@@ -91,10 +89,6 @@ static GOptionEntry g_pcat_cmd_entries[] =
         "Run as a daemon", NULL },
     { "distro", 0, 0, G_OPTION_ARG_NONE, &g_pcat_main_cmd_distro,
         "Run this program on other Linux distros (not photonicatWrt)", NULL },
-    { "mwan", 0, 0, G_OPTION_ARG_NONE, &g_pcat_main_cmd_mwan,
-        "Check MultiWAN policy", NULL },
-    { "connection", 0, 0, G_OPTION_ARG_NONE, &g_pcat_main_cmd_connection,
-        "Check connection", NULL },
     { NULL, 0, 0, G_OPTION_ARG_NONE, NULL, NULL, NULL }
 };
 
@@ -110,6 +104,7 @@ static gboolean pcat_main_config_data_load()
 {
     GKeyFile *keyfile;
     GError *error = NULL;
+    gboolean bvalue;
     gint ivalue;
     gint *ivlist;
     gsize ivlist_size;
@@ -130,6 +125,25 @@ static gboolean pcat_main_config_data_load()
 
         return FALSE;
     }
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "ForceDistro", NULL);
+    g_pcat_main_config_data.gn_force_distro = bvalue;
+
+    if(g_pcat_main_config_data.gn_force_power_usage!=NULL)
+    {
+        g_free(g_pcat_main_config_data.gn_force_power_usage);
+    }
+    g_pcat_main_config_data.gn_force_power_usage = g_key_file_get_string(
+        keyfile, "General", "ForcePowerUsage", NULL);
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "CheckMWANPolicy", NULL);
+    g_pcat_main_config_data.gn_check_mwan_policy = bvalue;
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "CheckConnection", NULL);
+    g_pcat_main_config_data.gn_check_connection = bvalue;
 
     if(g_pcat_main_config_data.hw_gpio_modem_power_chip!=NULL)
     {
@@ -1421,7 +1435,7 @@ int main(int argc, char *argv[])
             "communicate with other processes.");
     }
 
-    if(g_pcat_main_cmd_mwan)
+    if(g_pcat_main_config_data.gn_check_mwan_policy)
     {
         if(pthread_create(&mwan_policy_check_thread, NULL,
             pcat_main_mwan_policy_check_thread_func, NULL)!=0)
@@ -1435,7 +1449,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(g_pcat_main_cmd_connection)
+    if(g_pcat_main_config_data.gn_check_connection)
     {
         if(pthread_create(&connection_check_thread, NULL,
             pcat_main_connection_check_thread_func, NULL)!=0)
@@ -1449,7 +1463,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(g_pcat_main_cmd_mwan || g_pcat_main_cmd_connection)
+    if(g_pcat_main_config_data.gn_check_mwan_policy ||
+        g_pcat_main_config_data.gn_check_connection)
     {
         g_pcat_main_status_check_timeout_id =
             g_timeout_add_seconds(2, pcat_main_status_check_timeout_func, NULL);

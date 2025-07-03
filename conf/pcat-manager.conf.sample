@@ -1,3 +1,9 @@
+[General]
+ForceDistro=false
+ForcePowerUsage=
+CheckMWANPolicy=false
+CheckConnection=false
+
 [Hardware]
 GPIOModemPowerChip=/dev/gpiochip4
 GPIOModemPowerLine=18

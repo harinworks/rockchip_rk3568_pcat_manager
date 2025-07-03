@@ -33,6 +33,11 @@ typedef struct _PCatManagerMainConfigData
 {
     gboolean valid;
 
+    gboolean gn_force_distro;
+    gchar *gn_force_power_usage;
+    gboolean gn_check_mwan_policy;
+    gboolean gn_check_connection;
+
     gchar *hw_gpio_modem_power_chip;
     guint hw_gpio_modem_power_line;
     gboolean hw_gpio_modem_power_active_low;
