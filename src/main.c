@@ -193,7 +193,9 @@ static gboolean pcat_main_config_data_load()
     g_pcat_main_config_data.hw_gpio_modem_reset_active_low =
         (ivalue!=0);
 
-    memset(g_pcat_main_config_data.pm_battery_discharge_table_normal, 0,
+    memset(g_pcat_main_config_data.pm_battery_discharge_table_general, 0,
+        sizeof(guint) * 11);
+    memset(g_pcat_main_config_data.pm_battery_discharge_table_lte, 0,
         sizeof(guint) * 11);
     memset(g_pcat_main_config_data.pm_battery_discharge_table_5g, 0,
         sizeof(guint) * 11);
@@ -201,14 +203,30 @@ static gboolean pcat_main_config_data_load()
         sizeof(guint) * 11);
 
     ivlist = g_key_file_get_integer_list(keyfile, "PowerManager",
-        "BatteryDischargeTableNormal", &ivlist_size, NULL);
+        "BatteryDischargeTableGeneral", &ivlist_size, NULL);
     if(ivlist!=NULL)
     {
         if(ivlist_size >= 11)
         {
             for(i=0;i<11;i++)
             {
-                g_pcat_main_config_data.pm_battery_discharge_table_normal[i] =
+                g_pcat_main_config_data.pm_battery_discharge_table_general[i] =
+                    ivlist[i];
+            }
+        }
+
+        g_free(ivlist);
+    }
+
+    ivlist = g_key_file_get_integer_list(keyfile, "PowerManager",
+        "BatteryDischargeTableLTE", &ivlist_size, NULL);
+    if(ivlist!=NULL)
+    {
+        if(ivlist_size >= 11)
+        {
+            for(i=0;i<11;i++)
+            {
+                g_pcat_main_config_data.pm_battery_discharge_table_lte[i] =
                     ivlist[i];
             }
         }

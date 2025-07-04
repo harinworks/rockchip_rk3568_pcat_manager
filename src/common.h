@@ -54,7 +54,8 @@ typedef struct _PCatManagerMainConfigData
     guint pm_auto_shutdown_voltage_lte;
     guint pm_auto_shutdown_voltage_5g;
 
-    guint pm_battery_discharge_table_normal[11];
+    guint pm_battery_discharge_table_general[11];
+    guint pm_battery_discharge_table_lte[11];
     guint pm_battery_discharge_table_5g[11];
     guint pm_battery_charge_table[11];
 
