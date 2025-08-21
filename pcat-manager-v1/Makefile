@@ -6,7 +6,7 @@ PKG_RELEASE:=99
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/harinworks/rockchip_rk3568_pcat_manager
-PKG_SOURCE_VERSION:=master
+PKG_SOURCE_VERSION:=v1
 PKG_MIRROR_HASH:=skip
 
 PKG_LICENSE:=GPL-3.0
