@@ -60,6 +60,7 @@ static gboolean pcat_main_config_data_load()
 {
     GKeyFile *keyfile;
     GError *error = NULL;
+    gboolean bvalue;
     gint ivalue;
 
     g_pcat_main_config_data.valid = FALSE;
@@ -77,6 +78,14 @@ static gboolean pcat_main_config_data_load()
 
         return FALSE;
     }
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "ModemManagerEnabled", NULL);
+    g_pcat_main_config_data.gn_modem_manager_enabled = bvalue;
+
+    bvalue = g_key_file_get_boolean(keyfile, "General",
+        "ControllerEnabled", NULL);
+    g_pcat_main_config_data.gn_controller_enabled = bvalue;
 
     memset(g_pcat_main_config_data.pm_battery_discharge_table_general, 0,
         sizeof(guint) * 11);
@@ -683,9 +692,12 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                 g_message("WAN disconnected, set WWAN up.");
             }
 
-            pcat_modem_manager_iface_state_set(cur_route_mode != PCAT_MANAGER_ROUTE_MODE_WIRED);
+            if(g_pcat_main_config_data.gn_modem_manager_enabled)
+            {
+                pcat_modem_manager_iface_state_set(cur_route_mode != PCAT_MANAGER_ROUTE_MODE_WIRED);
+            }
         }
-        else
+        else if(g_pcat_main_config_data.gn_modem_manager_enabled)
         {
             pcat_modem_manager_iface_state_set(TRUE);
         }
@@ -916,12 +928,15 @@ int main(int argc, char *argv[])
             "power management may not work!");
     }
 
-    if(!pcat_modem_manager_init())
+    if(g_pcat_main_config_data.gn_modem_manager_enabled &&
+        !pcat_modem_manager_init())
     {
         g_warning("Failed to initialize modem manager, "
             "LTE/5G modem may not work!");
     }
-    if(!pcat_controller_init())
+
+    if(g_pcat_main_config_data.gn_controller_enabled &&
+        !pcat_controller_init())
     {
         g_warning("Failed to initialize controller, may not be able to "
             "communicate with other processes.");

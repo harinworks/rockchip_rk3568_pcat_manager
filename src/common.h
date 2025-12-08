@@ -35,6 +35,9 @@ typedef struct _PCatManagerMainConfigData
 {
     gboolean valid;
 
+    gboolean gn_modem_manager_enabled;
+    gboolean gn_controller_enabled;
+
     guint pm_auto_shutdown_voltage_general;
     guint pm_auto_shutdown_voltage_lte;
     guint pm_auto_shutdown_voltage_5g;
