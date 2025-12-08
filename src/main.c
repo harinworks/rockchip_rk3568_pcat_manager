@@ -121,7 +121,9 @@ static gboolean pcat_main_config_data_load()
         return FALSE;
     }
 
-    memset(g_pcat_main_config_data.pm_battery_discharge_table_normal, 0,
+    memset(g_pcat_main_config_data.pm_battery_discharge_table_general, 0,
+        sizeof(guint) * 11);
+    memset(g_pcat_main_config_data.pm_battery_discharge_table_lte, 0,
         sizeof(guint) * 11);
     memset(g_pcat_main_config_data.pm_battery_discharge_table_5g, 0,
         sizeof(guint) * 11);

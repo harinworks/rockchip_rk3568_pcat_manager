@@ -96,7 +96,8 @@ typedef struct _PCatPMUManagerData
     guint modem_power_usage;
     gint board_temp;
 
-    guint battery_discharge_table_normal[11];
+    guint battery_discharge_table_general[11];
+    guint battery_discharge_table_lte[11];
     guint battery_discharge_table_5g[11];
     guint battery_charge_table[11];
 
@@ -106,9 +107,14 @@ typedef struct _PCatPMUManagerData
 
 static PCatPMUManagerData g_pcat_pmu_manager_data = {0};
 
-static guint g_pat_pmu_manager_battery_discharge_table_normal[11] =
+static guint g_pat_pmu_manager_battery_discharge_table_general[11] =
 {
     4200, 4060, 3980, 3920, 3870, 3820, 3790, 3770, 3740, 3680, 3450
+};
+
+static guint g_pat_pmu_manager_battery_discharge_table_lte[11] =
+{
+    4200, 4060, 3980, 3920, 3870, 3820, 3790, 3770, 3740, 3680, 3600
 };
 
 static guint g_pat_pmu_manager_battery_discharge_table_5g[11] =
@@ -1268,8 +1274,10 @@ gboolean pcat_pmu_manager_init()
 
     for(i=0;i<11;i++)
     {
-        g_pcat_pmu_manager_data.battery_discharge_table_normal[i] =
-            g_pat_pmu_manager_battery_discharge_table_normal[i];
+        g_pcat_pmu_manager_data.battery_discharge_table_general[i] =
+            g_pat_pmu_manager_battery_discharge_table_general[i];
+        g_pcat_pmu_manager_data.battery_discharge_table_lte[i] =
+            g_pat_pmu_manager_battery_discharge_table_lte[i];
         g_pcat_pmu_manager_data.battery_discharge_table_5g[i] =
             g_pat_pmu_manager_battery_discharge_table_5g[i];
         g_pcat_pmu_manager_data.battery_charge_table[i] =
@@ -1279,22 +1287,42 @@ gboolean pcat_pmu_manager_init()
     config_data = pcat_main_config_data_get();
 
     valid = TRUE;
-    tmp = config_data->pm_battery_discharge_table_normal[0];
+    tmp = config_data->pm_battery_discharge_table_general[0];
     for(i=1;i<11;i++)
     {
-        if(tmp <= config_data->pm_battery_discharge_table_normal[i])
+        if(tmp <= config_data->pm_battery_discharge_table_general[i])
         {
             valid = FALSE;
             break;
         }
-        tmp = config_data->pm_battery_discharge_table_normal[i];
+        tmp = config_data->pm_battery_discharge_table_general[i];
     }
     if(valid)
     {
         for(i=0;i<11;i++)
         {
-            g_pcat_pmu_manager_data.battery_discharge_table_normal[i] =
-                config_data->pm_battery_discharge_table_normal[i];
+            g_pcat_pmu_manager_data.battery_discharge_table_general[i] =
+                config_data->pm_battery_discharge_table_general[i];
+        }
+    }
+
+    valid = TRUE;
+    tmp = config_data->pm_battery_discharge_table_lte[0];
+    for(i=1;i<11;i++)
+    {
+        if(tmp <= config_data->pm_battery_discharge_table_lte[i])
+        {
+            valid = FALSE;
+            break;
+        }
+        tmp = config_data->pm_battery_discharge_table_lte[i];
+    }
+    if(valid)
+    {
+        for(i=0;i<11;i++)
+        {
+            g_pcat_pmu_manager_data.battery_discharge_table_lte[i] =
+                config_data->pm_battery_discharge_table_lte[i];
         }
     }
 
