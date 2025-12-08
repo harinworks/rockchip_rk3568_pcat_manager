@@ -20,49 +20,6 @@
 
 #define PCAT_MAIN_LOG_FILE "/tmp/pcat-manager.log"
 
-typedef enum
-{
-    PCAT_MAIN_IFACE_WIRED,
-    PCAT_MAIN_IFACE_WIRED_V6,
-    PCAT_MAIN_IFACE_MOBILE_5G,
-    PCAT_MAIN_IFACE_MOBILE_5G_V6,
-    PCAT_MAIN_IFACE_MOBILE_LTE,
-    PCAT_MAIN_IFACE_MOBILE_LTE_V6,
-    PCAT_MAIN_IFACE_LAST
-}PCatMainIfaceType;
-
-const gchar * const g_pcat_main_iface_names[
-    PCAT_MAIN_IFACE_LAST] =
-{
-    "wan",
-    "wan6",
-    "wwan_5g",
-    "wwan_5g_v6",
-    "wwan_lte",
-    "wwan_lte_v6"
-};
-
-const gboolean g_pcat_main_iface_is_ipv6[PCAT_MAIN_IFACE_LAST] =
-{
-    FALSE,
-    TRUE,
-    FALSE,
-    TRUE,
-    FALSE,
-    TRUE
-};
-
-const PCatManagerRouteMode g_pcat_main_iface_route_mode[
-    PCAT_MAIN_IFACE_LAST] =
-{
-    PCAT_MANAGER_ROUTE_MODE_WIRED,
-    PCAT_MANAGER_ROUTE_MODE_WIRED,
-    PCAT_MANAGER_ROUTE_MODE_MOBILE,
-    PCAT_MANAGER_ROUTE_MODE_MOBILE,
-    PCAT_MANAGER_ROUTE_MODE_MOBILE,
-    PCAT_MANAGER_ROUTE_MODE_MOBILE
-};
-
 static gboolean g_pcat_main_cmd_daemonsize = FALSE;
 static gboolean g_pcat_main_cmd_distro = FALSE;
 
@@ -271,6 +228,35 @@ static gboolean pcat_main_config_data_load()
     ivalue = g_key_file_get_integer(keyfile, "Debug",
         "OutputLog", NULL);
     g_pcat_main_config_data.debug_output_log = ivalue;
+
+    if(g_pcat_main_config_data.mwan_iface_table_name!=NULL)
+    {
+        g_free(g_pcat_main_config_data.mwan_iface_table_name);
+    }
+    g_pcat_main_config_data.mwan_iface_table_name =
+        g_key_file_get_string_list(keyfile, "MWAN", "InterfaceTableName",
+            &g_pcat_main_config_data.mwan_iface_table_name_size, NULL);
+
+    if(g_pcat_main_config_data.mwan_iface_table_mode!=NULL)
+    {
+        g_free(g_pcat_main_config_data.mwan_iface_table_mode);
+    }
+    g_pcat_main_config_data.mwan_iface_table_mode =
+        g_key_file_get_string_list(keyfile, "MWAN", "InterfaceTableMode",
+            &g_pcat_main_config_data.mwan_iface_table_mode_size, NULL);
+
+    if(g_pcat_main_config_data.mwan_iface_table_ipv6!=NULL)
+    {
+        g_free(g_pcat_main_config_data.mwan_iface_table_ipv6);
+    }
+    g_pcat_main_config_data.mwan_iface_table_ipv6 =
+        g_key_file_get_boolean_list(keyfile, "MWAN", "InterfaceTableIPv6",
+            &g_pcat_main_config_data.mwan_iface_table_ipv6_size, NULL);
+
+    g_pcat_main_config_data.mwan_iface_table_size = MIN(
+        g_pcat_main_config_data.mwan_iface_table_name_size,
+        MIN(g_pcat_main_config_data.mwan_iface_table_mode_size,
+            g_pcat_main_config_data.mwan_iface_table_ipv6_size));
 
     g_key_file_unref(keyfile);
 
@@ -549,6 +535,23 @@ static gboolean pcat_main_sigterm_func(gpointer user_data)
     return TRUE;
 }
 
+static PCatManagerRouteMode pcat_main_route_mode_by_string(const char *str) {
+    if(strcmp(str, "wired")==0)
+    {
+        return PCAT_MANAGER_ROUTE_MODE_WIRED;
+    }
+    else if(strcmp(str, "mobile")==0)
+    {
+        return PCAT_MANAGER_ROUTE_MODE_MOBILE;
+    }
+    else if(strcmp(str, "unknown")==0)
+    {
+        return PCAT_MANAGER_ROUTE_MODE_UNKNOWN;
+    }
+
+    return PCAT_MANAGER_ROUTE_MODE_NONE;
+}
+
 static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
 {
     guint i;
@@ -556,17 +559,20 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
     gchar *interface_status_stdout = NULL;
     struct json_tokener *tokener;
     struct json_object *root, *child;
+    gsize iface_table_size = g_pcat_main_config_data.mwan_iface_table_size;
+    GArray *iface_status = g_array_sized_new(FALSE, FALSE, sizeof(gboolean),
+        iface_table_size);
     const gchar *iface_protocol_type;
-    gboolean wan_ethernet_available;
+    static PCatManagerRouteMode cur_route_mode;
 
     while(g_pcat_main_mwan_route_check_flag)
     {
-        wan_ethernet_available = FALSE;
-
-        for(i=0;i<PCAT_MAIN_IFACE_LAST;i++)
+        for(i=0;i<iface_table_size;i++)
         {
+            g_array_index(iface_status, gboolean, i) = FALSE;
+
             command = g_strdup_printf("ubus call network.interface.%s status",
-                g_pcat_main_iface_names[i]);
+                g_pcat_main_config_data.mwan_iface_table_name[i]);
             g_spawn_command_line_sync(command, &interface_status_stdout,
                 NULL, NULL, NULL);
             g_free(command);
@@ -604,7 +610,8 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                     break;
                 }
 
-                iface_protocol_type = g_pcat_main_iface_is_ipv6[i] ?
+                iface_protocol_type =
+                    g_pcat_main_config_data.mwan_iface_table_ipv6[i] ?
                     "ipv6-address" : "ipv4-address";
                 if(json_object_object_get_ex(root, iface_protocol_type,
                     &child))
@@ -612,10 +619,8 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                     if(json_object_get_type(child)==json_type_array &&
                        json_object_array_length(child) > 0)
                     {
-                        if(i==0)
-                        {
-                            wan_ethernet_available = TRUE;
-                        }
+                        cur_route_mode = pcat_main_route_mode_by_string(
+                            g_pcat_main_config_data.mwan_iface_table_mode[i]);
                     }
                 }
 
@@ -628,20 +633,20 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
 
         if(g_pcat_main_network_modem_iface_auto_stop)
         {
-            if(wan_ethernet_available &&
+            if(cur_route_mode == PCAT_MANAGER_ROUTE_MODE_WIRED &&
                 g_pcat_main_network_route_mode!=PCAT_MANAGER_ROUTE_MODE_WIRED)
             {
-                for(i=0;i<PCAT_MAIN_IFACE_LAST;i++)
+                for(i=0;i<iface_table_size;i++)
                 {
-                    if(g_pcat_main_iface_route_mode[i]!=
-                        PCAT_MANAGER_ROUTE_MODE_MOBILE)
+                    if(pcat_main_route_mode_by_string(
+                        g_pcat_main_config_data.mwan_iface_table_mode[i])!=PCAT_MANAGER_ROUTE_MODE_MOBILE)
                     {
                         continue;
                     }
 
                     command = g_strdup_printf(
                         "ubus call network.interface.%s down",
-                        g_pcat_main_iface_names[i]);
+                        g_pcat_main_config_data.mwan_iface_table_name[i]);
                     g_spawn_command_line_sync(command, NULL, NULL, NULL, NULL);
                     g_free(command);
                 }
@@ -649,20 +654,20 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                 g_message("Living WAN detected, taking WWAN down.");
             }
 
-            if(!wan_ethernet_available &&
+            if(cur_route_mode != PCAT_MANAGER_ROUTE_MODE_WIRED &&
                 g_pcat_main_network_route_mode!=PCAT_MANAGER_ROUTE_MODE_MOBILE)
             {
-                for(i=0;i<PCAT_MAIN_IFACE_LAST;i++)
+                for(i=0;i<iface_table_size;i++)
                 {
-                    if(g_pcat_main_iface_route_mode[i]!=
-                        PCAT_MANAGER_ROUTE_MODE_MOBILE)
+                    if(pcat_main_route_mode_by_string(
+                        g_pcat_main_config_data.mwan_iface_table_mode[i])!=PCAT_MANAGER_ROUTE_MODE_MOBILE)
                     {
                         continue;
                     }
 
                     command = g_strdup_printf(
                         "ubus call network.interface.%s up",
-                        g_pcat_main_iface_names[i]);
+                        g_pcat_main_config_data.mwan_iface_table_name[i]);
                     g_spawn_command_line_sync(command, NULL, NULL, NULL, NULL);
                     g_free(command);
                 }
@@ -670,15 +675,14 @@ static void *pcat_main_mwan_policy_check_thread_func(void *user_data)
                 g_message("WAN disconnected, set WWAN up.");
             }
 
-            pcat_modem_manager_iface_state_set(!wan_ethernet_available);
+            pcat_modem_manager_iface_state_set(cur_route_mode != PCAT_MANAGER_ROUTE_MODE_WIRED);
         }
         else
         {
             pcat_modem_manager_iface_state_set(TRUE);
         }
 
-        g_pcat_main_network_route_mode = wan_ethernet_available ?
-            PCAT_MANAGER_ROUTE_MODE_WIRED : PCAT_MANAGER_ROUTE_MODE_MOBILE;
+        g_pcat_main_network_route_mode = cur_route_mode;
 
         for(i=0;i<30;i++)
         {
