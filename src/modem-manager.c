@@ -859,7 +859,7 @@ static gboolean pcat_modem_manager_scan_usb_devs(PCatModemManagerData *mm_data)
         {
             if(mm_data->system_first_run)
             {
-                g_spawn_command_line_async("ModemManagerSwitch.sh disable",
+                g_spawn_command_line_async("/etc/init.d/modemmanager disable",
                     NULL);
                 mm_data->system_first_run = FALSE;
             }
@@ -869,7 +869,7 @@ static gboolean pcat_modem_manager_scan_usb_devs(PCatModemManagerData *mm_data)
         {
             if(mm_data->system_first_run)
             {
-                g_spawn_command_line_async("ModemManagerSwitch.sh enable",
+                g_spawn_command_line_async("/etc/init.d/modemmanager enable",
                     NULL);
                 mm_data->system_first_run = FALSE;
             }
