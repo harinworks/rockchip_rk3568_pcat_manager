@@ -33,5 +33,5 @@ jobs:
         with:
           name: pcat-manager-v1-${{ matrix.arch }}-${{ matrix.branch }}
           path: |
-            bin/packages/${{ matrix.arch }}/action/pcat-manager-v1*.ipk
+            bin/packages/${{ matrix.arch }}/action/*.ipk
           if-no-files-found: error
