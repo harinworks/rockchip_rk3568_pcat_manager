@@ -836,7 +836,7 @@ static void pcat_pmu_pm_dev_read_data_parse(PCatPMUManagerData *pmu_data)
                         guint8 state = 0;
 
                         g_spawn_command_line_async(
-                            "pcat-factory-reset.sh", NULL);
+                            "sh -c 'firstboot -y && reboot'", NULL);
 
                         if(need_ack)
                         {
