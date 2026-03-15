@@ -1,4 +1,4 @@
-name: build-ipk
+name: build-openwrt
 
 on:
   workflow_dispatch:
@@ -12,15 +12,29 @@ jobs:
         arch:
           - aarch64_generic
         branch:
-          - openwrt-24.10
           - SNAPSHOT
+          - openwrt-25.12
+          - openwrt-24.10
 
     steps:
       - name: checkout
         uses: actions/checkout@v6
 
+      - name: checkout-action
+        uses: actions/checkout@v6
+        with:
+          repository: openwrt/gh-action-sdk
+          ref: main
+          path: .gh-action-sdk
+
+      - name: patch-action
+        run: |
+          sed -i \
+            's|"package/$PKG/check" V=s|"package/$PKG/check" V=s FIXUP=1|' \
+            .gh-action-sdk/entrypoint.sh
+
       - name: build
-        uses: cmangla/gh-action-sdk@pr-hash-fixup-option
+        uses: ./.gh-action-sdk
         env:
           ARCH: ${{ matrix.arch }}-${{ matrix.branch }}
           PACKAGES: pcat-manager-v1
@@ -33,5 +47,5 @@ jobs:
         with:
           name: pcat-manager-v1-${{ matrix.arch }}-${{ matrix.branch }}
           path: |
-            bin/packages/${{ matrix.arch }}/action/*.ipk
+            bin/packages/${{ matrix.arch }}/action/pcat-manager-v1*.[ai]pk
           if-no-files-found: error
